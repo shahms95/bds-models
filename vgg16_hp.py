@@ -81,7 +81,7 @@ def f(params):
 
     # print(res)
 
-    res = model.evaluate(x = train_generator.next()[0], y = train_generator.next()[1], steps = 10)
+    res = model.evaluate(x = train_generator.next()[0], y = train_generator.next()[1], steps = 200)
 
 
     return {'loss': res, 'status': STATUS_OK}
