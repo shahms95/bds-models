@@ -46,7 +46,7 @@ def f(params):
 
     model.compile(sgd, loss='categorical_crossentropy')
 
-    ROOT_DIR = '~/tiny-imagenet-200/'
+    ROOT_DIR = '/users/jzhang93/tiny-imagenet-200/'
 
 
     train_datagen  = ImageDataGenerator()
