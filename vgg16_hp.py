@@ -34,7 +34,7 @@ def f(params):
     batch_size = params['batch_size']
     momentum = params['momentum']
     # batch_size = 
-    config = tf.ConfigProto( device_count = {'GPU': 1 } ) 
+    config = tf.ConfigProto( device_count = {'GPU': 0, 'CPU' : 40 } ) 
     sess = tf.Session(config=config) 
     K.set_session(sess)
 
@@ -46,7 +46,7 @@ def f(params):
 
     model.compile(sgd, loss='categorical_crossentropy')
 
-    ROOT_DIR = '../imagenet-project/ILSVRC/Data/CLS-LOC/'
+    ROOT_DIR = '~/tiny-imagenet-200/'
 
 
     train_datagen  = ImageDataGenerator()
