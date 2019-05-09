@@ -14,7 +14,7 @@ Key Features:
     b) Saves copy of .py files in training result directory
     c) Resume training from checkpoint
 """
-from vgg_16 import *
+from vgg16 import *
 # from logistic_regression import *
 # from single_layer_nn import *
 from metrics import *
