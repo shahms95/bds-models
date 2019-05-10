@@ -3,7 +3,7 @@ from keras import backend as K
 from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
 from keras.applications.vgg16 import VGG16
 from keras import optimizers
-# from python_utils import *
+from python_utils import *
 import numpy as np
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 import matplotlib.pyplot as plt
@@ -34,7 +34,7 @@ def f(params):
     batch_size = params['batch_size']
     momentum = params['momentum']
     # batch_size = 
-    config = tf.ConfigProto( device_count = {'GPU': 0, 'CPU' : 40 } ) 
+    config = tf.ConfigProto( device_count = {'GPU': 3 } ) 
     sess = tf.Session(config=config) 
     K.set_session(sess)
 
@@ -46,7 +46,7 @@ def f(params):
 
     model.compile(sgd, loss='categorical_crossentropy')
 
-    ROOT_DIR = '/users/jzhang93/tiny-imagenet-200/'
+    ROOT_DIR = '../imagenet-project/ILSVRC/Data/CLS-LOC/'
 
 
     train_datagen  = ImageDataGenerator()
@@ -81,7 +81,7 @@ def f(params):
 
     # print(res)
 
-    res = model.evaluate(x = train_generator.next()[0], y = train_generator.next()[1], steps = 200)
+    res = model.evaluate(x = train_generator.next()[0], y = train_generator.next()[1], steps = 10)
 
 
     return {'loss': res, 'status': STATUS_OK}

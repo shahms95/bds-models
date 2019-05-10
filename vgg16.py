@@ -1,141 +1,118 @@
+"""
+Tiny ImageNet Model
+Written by Patrick Coady (pcoady@alum.mit.edu)
+
+Architecture is based on VGG-16 model, but the final pool-conv-conv-conv-pool
+layers were discarded. The input to the network is a 56x56 RGB crop (versus
+224x224 crop for the original VGG-16 model). L2 regularization is applied to
+all layer weights. And dropout is applied to the first 2 fully-connected
+layers.
+
+1. conv-conv-maxpool
+2. conv-conv-maxpool
+3. conv-conv-maxpool
+4. conv-conv-conv-maxpool
+4. fc-4096 (ReLU)
+5. fc-2048 (ReLU)
+6. fc-200
+7. softmax
+"""
 import tensorflow as tf
-from keras import backend as K
-from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
-from keras.applications.vgg16 import VGG16
-from keras import optimizers
-from python_utils import *
 import numpy as np
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-import matplotlib.pyplot as plt
-import tkinter
-import os
-
-# os.remove("data.txt")
-
-learning_rate_vector1 = [0.005, 0.01, 0.015, 0.02, 0.025]
-learning_rate_vector2 = [0.03, 0.035, 0.04, 0.045, 0.05]
-batch_size_vector = [8, 16, 24, 32, 40, 48, 56, 64]
-momentum_vector = [0.5, 0.9, 0.99, 1.0]
-
-fspace1 = {
-    'learning_rate': hp.choice('learning_rate', learning_rate_vector1),
-    'batch_size': hp.choice('batch_size', batch_size_vector),
-    'momentum': hp.choice('momentum', momentum_vector)
-}
-
-fspace2 = {
-    'learning_rate': hp.choice('learning_rate', learning_rate_vector2),
-    'batch_size': hp.choice('batch_size', batch_size_vector),
-    'momentum': hp.choice('momentum', momentum_vector)
-}
-
-def f(params):
-    learning_rate = params['learning_rate']
-    batch_size = params['batch_size']
-    momentum = params['momentum']
-    # batch_size = 
-    config = tf.ConfigProto( device_count = {'GPU': 3 } ) 
-    sess = tf.Session(config=config) 
-    K.set_session(sess)
-
-    model = VGG16(include_top=True, weights=None)
-
-    # print(model.summary())
-
-    sgd = optimizers.SGD(lr=learning_rate, clipnorm=1., momentum=momentum)
-
-    model.compile(sgd, loss='categorical_crossentropy')
-
-    ROOT_DIR = '../imagenet-project/ILSVRC/Data/CLS-LOC/'
 
 
-    train_datagen  = ImageDataGenerator()
-    test_datagen = ImageDataGenerator()
-        
-    img_rows, img_cols = 224,224 # 299x299 for inception, 224x224 for VGG and Resnet
-    train_generator = train_datagen.flow_from_directory(
-            ROOT_DIR + 'train/',
-            target_size=(img_rows, img_cols),#The target_size is the size of your input images,every image will be resized to this size
-            batch_size=batch_size,
-            class_mode='categorical')
+def conv_2d(inputs, filters, kernel_size, name=None):
+  """3x3 conv layer: ReLU + (1, 1) stride + He initialization"""
 
-    print("Train Generator's work is done!")
+  # He initialization = normal dist with stdev = sqrt(2.0/fan-in)
+  stddev = np.sqrt(2 / (np.prod(kernel_size) * int(inputs.shape[3])))
+  out = tf.layers.conv2d(inputs, filters=filters, kernel_size=kernel_size,
+                         padding='same', activation=tf.nn.relu,
+                         kernel_initializer=tf.random_normal_initializer(stddev=stddev),
+                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1.0),
+                         name=name)
+  tf.summary.histogram('act' + name, out)
 
-    validation_generator = test_datagen.flow_from_directory(
-            ROOT_DIR + 'val/',
-            target_size=(img_rows, img_cols),#The target_size is the size of your input images,every image will be resized to this size
-            batch_size=batch_size,
-            class_mode='categorical')
+  return out
 
 
+def dense_relu(inputs, units, name=None):
+  """3x3 conv layer: ReLU + He initialization"""
 
-    print("Validation Generator's work is done!")
+  # He initialization: normal dist with stdev = sqrt(2.0/fan-in)
+  stddev = np.sqrt(2 / int(inputs.shape[1]))
+  out = tf.layers.dense(inputs, units, activation=tf.nn.relu,
+                        kernel_initializer=tf.random_normal_initializer(stddev=stddev),
+                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1.0),
+                        name=name)
 
-    model.fit_generator(
-            train_generator,
-            steps_per_epoch=10,
-            epochs=5, validation_data=validation_generator,
-            validation_steps=50
-            )
-    # res = model.predict(x = validation_generator.next()[0])
+  tf.summary.histogram('act' + name, out)
 
-    # print(res)
-
-    res = model.evaluate(x = train_generator.next()[0], y = train_generator.next()[1], steps = 10)
-
-
-    return {'loss': res, 'status': STATUS_OK}
+  return out
 
 
-trials = Trials()
-best = fmin(fn=f, space=fspace1, algo=tpe.suggest, max_evals=20, trials=trials)
+def dense(inputs, units, name=None):
+  """3x3 conv layer: ReLU + He initialization"""
 
-# print('best:', best)
+  # He initialization: normal dist with stdev = sqrt(2.0/fan-in)
+  stddev = np.sqrt(2 / int(inputs.shape[1]))
+  out = tf.layers.dense(inputs, units,
+                        kernel_initializer=tf.random_normal_initializer(stddev=stddev),
+                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1.0),
+                        name=name)
+  tf.summary.histogram('act' + name, out)
 
-# print('trials:')
-# for trial in trials.trials[:2]:
-#     print(trial)
-
-# print(len(trials.trials))
-
-
-
-# f, ax = plt.subplots(1)
-learning_rate_s = [t['misc']['vals']['learning_rate'] for t in trials.trials]
-batch_size_s = [t['misc']['vals']['batch_size'] for t in trials.trials]
-momentums = [t['misc']['vals']['momentum'] for t in trials.trials]
-losss = [t['result']['loss'] for t in trials.trials]
+  return out
 
 
+def vgg_16(training_batch, config):
+  """VGG-like conv-net
 
-with open('vgg_data.txt', 'w+') as f:
-    for i1, i2, i3, i4 in zip(learning_rate_s, batch_size_s, losss, momentums):
-        f.write(str(learning_rate_vector1[i1[0]]))
-        f.write(', ')
-        f.write(str(batch_size_vector[i2[0]]))
-        f.write(', ')
-        f.write(str(momentum_vector[i4[0]]))
-        f.write(', ')
-        f.write(str(i3))
-        f.write('\n')
+  Args:
+    training_batch: batch of images (N, 56, 56, 3)
+    config: training configuration object
 
-best = fmin(fn=f, space=fspace2, algo=tpe.suggest, max_evals=20, trials=trials)
+  Returns:
+    class prediction scores
+  """
+  img = tf.cast(training_batch, tf.float32)
+  out = (img - 128.0) / 128.0
 
-learning_rate_s = [t['misc']['vals']['learning_rate'] for t in trials.trials]
-batch_size_s = [t['misc']['vals']['batch_size'] for t in trials.trials]
-momentums = [t['misc']['vals']['momentum'] for t in trials.trials]
-losss = [t['result']['loss'] for t in trials.trials]
+  tf.summary.histogram('img', training_batch)
+  # (N, 56, 56, 3)
+  out = conv_2d(out, 64, (3, 3), 'conv1_1')
+  out = conv_2d(out, 64, (3, 3), 'conv1_2')
+  out = tf.layers.max_pooling2d(out, (2, 2), (2, 2), name='pool1')
 
+  # (N, 28, 28, 64)
+  out = conv_2d(out, 128, (3, 3), 'conv2_1')
+  out = conv_2d(out, 128, (3, 3), 'conv2_2')
+  out = tf.layers.max_pooling2d(out, (2, 2), (2, 2), name='pool2')
 
+  # (N, 14, 14, 128)
+  out = conv_2d(out, 256, (3, 3), 'conv3_1')
+  out = conv_2d(out, 256, (3, 3), 'conv3_2')
+  out = conv_2d(out, 256, (3, 3), 'conv3_3')
+  out = tf.layers.max_pooling2d(out, (2, 2), (2, 2), name='pool3')
 
-with open('vgg_data.txt', 'a+') as f:
-    for i1, i2, i3, i4 in zip(learning_rate_s, batch_size_s, losss, momentums):
-        f.write(str(learning_rate_vector2[i1[0]]))
-        f.write(', ')
-        f.write(str(batch_size_vector[i2[0]]))
-        f.write(', ')
-        f.write(str(momentum_vector[i4[0]]))
-        f.write(', ')
-        f.write(str(i3))
-        f.write('\n')
+  # (N, 7, 7, 256)
+  out = conv_2d(out, 512, (3, 3), 'conv4_1')
+  out = conv_2d(out, 512, (3, 3), 'conv4_2')
+  out = conv_2d(out, 512, (3, 3), 'conv4_3')
 
+  # fc1: flatten -> fully connected layer
+  # (N, 7, 7, 512) -> (N, 25088) -> (N, 4096)
+  out = tf.contrib.layers.flatten(out)
+  out = dense_relu(out, 4096, 'fc1')
+  out = tf.nn.dropout(out, config.dropout_keep_prob)
+
+  # fc2
+  # (N, 4096) -> (N, 2048)
+  out = dense_relu(out, 2048, 'fc2')
+  out = tf.nn.dropout(out, config.dropout_keep_prob)
+
+  # softmax
+  # (N, 2048) -> (N, 200)
+  logits = dense(out, 200, 'fc3')
+
+  return logits

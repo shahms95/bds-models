@@ -14,7 +14,7 @@ Key Features:
     b) Saves copy of .py files in training result directory
     c) Resume training from checkpoint
 """
-from vgg_16 import *
+from vgg16 import *
 # from logistic_regression import *
 # from single_layer_nn import *
 from metrics import *
@@ -174,10 +174,10 @@ def evaluate(ckpt):
 
 def options(config):
   """Get user input on training options"""
-  q = input('Enter a short configuration name [default = "default"]: ')
-  if len(q) == 0:
-    q = 'default'
-  config.config_name = q
+  # q = input('Enter a short configuration name [default = "default"]: ')
+  # if len(q) == 0:
+  #   q = 'default'
+  config.config_name = "default"
   # tensorboard and checkpoint log directory names
   ckpt_path = 'checkpoints/' + config.model_name + '/' + config.config_name
   tflog_path = ('tf_logs/' + config.model_name + '/' +
